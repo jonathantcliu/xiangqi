@@ -68,9 +68,6 @@ class Piece(DragBehavior, Image):
 		if self.collide_point(*touch.pos):
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
-			#self.parent.previous_pos_for_active = self.pos
-			#self.previous_position = self.pos
-			#print('position was ' + str(self.parent.previous_pos_for_active))
 			print('position was ' + str(self.previous_position))
 			
 		return super(Piece, self).on_touch_down(touch)
@@ -113,33 +110,6 @@ class Piece(DragBehavior, Image):
 				self.y = corrected_y
 			else:
 				self.handle_invalid_move()
-				
-				
-			#positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
-			#print(positions)
-			#matching = get_duplicate_piece((corrected_x, corrected_y), positions, 49)
-			#print('these match ' + str(matching))
-			#print('i am ' + self.source)
-
-			#for match in matching:
-				#if match[0] == self.pos and match[1] == self.source:
-				#	continue
-				#if self.source.split('_', 1)[1] == match[1].split('_', 1)[1]:
-					#print('now i am ' + self.source)
-					#print('invalid move')
-					#self.handle_invalid_move()
-					#break
-					#print('previous position was ' + str(self.parent.previous_pos_for_active))
-					#print('previous position was ' + str(self.previous_position))
-					#corrected_x = self.parent.previous_pos_for_active[0]
-					#corrected_y = self.parent.previous_pos_for_active[1]
-					#corrected_x = self.previous_position[0]
-					#corrected_y = self.previous_position[1]
-					
-			#self.x = corrected_x
-			#self.y = corrected_y
-			
-			#print('previous position now is ' + str(testx) + ', ' + str(testy))
 			
 		return super(Piece, self).on_touch_up(touch)
 		
