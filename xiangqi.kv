@@ -1,0 +1,21 @@
+<Piece>:
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 10000000000
+    drag_distance: 0
+
+<Xiangqi>:
+	turn: 'red'
+	#active_piece_moving_onto: ''
+	#previous_pos_for_active: (0, 0)
+	canvas.before:
+		Rectangle:
+			pos: self.pos
+			size: self.size
+			source: './assets/board.png'
+	
+		
+		
+		
+		
+			
+
