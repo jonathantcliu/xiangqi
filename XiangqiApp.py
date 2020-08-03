@@ -23,6 +23,7 @@ def get_duplicate_piece(points, l, margin):
 	matching = []
 	for item in l:
 		if is_close_enough(points, item[0], margin):
+			
 			matching.append(item)
 			
 	return matching
