@@ -11,19 +11,20 @@ from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
 
 Window.size = (800, 800)
-order = ['rook', 'horse', 'elephant', 'minister', 'general', 'minister', 'elephant', 'horse', 'rook']
+#order = ['rook', 'horse', 'elephant', 'minister', 'general', 'minister', 'elephant', 'horse', 'rook']
+
 
 def is_close_enough(points_a, points_b, margin):
 	if points_a[0] - margin < points_b[0] and points_a[0] + margin > points_b[0]:
 		if points_a[1] - margin < points_b[1] and points_a[1] + margin > points_b[1]:
 			return True
+	
 	return False
 
 def get_duplicate_piece(points, l, margin):
 	matching = []
 	for item in l:
 		if is_close_enough(points, item[0], margin):
-			
 			matching.append(item)
 			
 	return matching
@@ -33,6 +34,7 @@ class Xiangqi(Widget):
 
 class Piece(DragBehavior, Image):
 	def __init__(self, **args):
+		self.size = (70, 70)
 		self.id_number = 0
 		self.is_active = False
 		self.previous_position = (0, 0)
@@ -114,59 +116,127 @@ class Piece(DragBehavior, Image):
 				self.handle_invalid_move()
 			
 		return super(Piece, self).on_touch_up(touch)
+
+class Rook(Piece):
+	def __init__(self, side):
+		super(Rook, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/rook_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+
+class Horse(Piece):
+	def __init__(self, side):
+		super(Horse, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/horse_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+	
+class Elephant(Piece):
+	def __init__(self, side):
+		super(Elephant, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/elephant_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+
+class Minister(Piece):
+	def __init__(self, side):
+		super(Minister, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/minister_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+
+class General(Piece):
+	def __init__(self, side):
+		super(General, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/general_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+
+class Cannon(Piece):
+	def __init__(self, side):
+		super(Cannon, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/cannon_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+
+class Pawn(Piece):
+	def __init__(self, side):
+		super(Pawn, self).__init__()
+		self.side = side
+		self.source = './assets/' + side + '/pawn_' + side + '.png'
+	
+	def get_valid_moves(self, pos_x, pos_y):
+		pass
+	
 		
 	
 class XiangqiApp(App):
 	def build(self):
 		root = Xiangqi()
 		other = 'black'
-		if root.turn == 'black':
+		if root.host == 'black':
 			other = 'red'
 			
-		for i in range(9):
-			piece = Piece(pos = (46 + 80 * i, 40),
-			source = './assets/' + root.turn + '/' + order[i] + '_' + root.turn + '.png', size = (70, 70))
-			piece.side = root.turn
-			piece.id_number = i + 1
-			root.add_widget(piece)
+		sides = [root.host, other]
 		
-		for i in range(2):
-			piece = Piece(pos = (126 + 6 * 80 * i, 180),
-			source = './assets/' + root.turn + '/cannon_' + root.turn + '.png', size = (70, 70))
-			piece.side = root.turn
-			piece.id_number = i + 10
-			root.add_widget(piece)
-		
-		for i in range(5):
-			piece = Piece(pos = (46 + 160 * i, 250),
-			source = './assets/' + root.turn + '/pawn_' + root.turn + '.png', size = (70, 70))
-			piece.side = root.turn
-			piece.id_number = i + 12
-			root.add_widget(piece)
+		for side_index in range(2): 
+			for i in range(9):
+				if i == 0 or i == 8:
+					piece = Rook(sides[side_index])
+				elif i == 1 or i == 7:
+					piece = Horse(sides[side_index])
+				elif i == 2 or i == 6:
+					piece = Elephant(sides[side_index])
+				elif i == 3 or i == 5:
+					piece = Minister(sides[side_index])
+				elif i == 4:
+					piece = General(sides[side_index])
+				if side_index == 0:
+					piece.pos = (46 + 80 * i, 40)
+					piece.id_number = i + 1
+				else:
+					piece.pos = (46 + 80 * i, 700)
+					piece.id_number = i + 17
+				
+				root.add_widget(piece)
 			
-		for i in range(9):
-			piece = Piece(pos = (46 + 80 * i, 700),
-			source = './assets/' + other + '/' + order[i] + '_' + other + '.png', size = (70, 70))
-			piece.side = other
-			piece.id_number = i + 17
-			root.add_widget(piece)
+			for i in range(2):
+				piece = Cannon(sides[side_index])
+				if side_index == 0:
+					piece.pos = (126 + 6 * 80 * i, 180)
+					piece.id_number = i + 10
+				else:
+					piece.pos = (126 + 6 * 80 * i, 550)
+					piece.id_number = i + 26
+				
+				root.add_widget(piece)
 			
-		for i in range(2):
-			piece = Piece(pos = (126 + 6 * 80 * i, 550),
-			source = './assets/' + other + '/cannon_' + other + '.png', size = (70, 70))
-			piece.side = other
-			piece.id_number = i + 26
-			root.add_widget(piece)
-		
-		for i in range(5):
-			piece = Piece(pos = (46 + 160 * i, 480),
-			source = './assets/' + other + '/pawn_' + other + '.png', size = (70, 70))
-			piece.side = other
-			piece.id_number = i + 28
-			root.add_widget(piece)
-		
-		root.turn = 'red'
+			for i in range(5):
+				piece = Pawn(sides[side_index])
+				if side_index == 0:
+					piece.pos = (46 + 160 * i, 250)
+					piece.id_number = i + 12
+				else:
+					piece.pos = (46 + 160 * i, 480)
+					piece.id_number = i + 28
+					
+				root.add_widget(piece)
 			
+			board_side = 1
+			
+		#root.turn = 'red'	
 		return root
 
 XiangqiApp().run()
