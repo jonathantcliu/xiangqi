@@ -33,6 +33,7 @@ class Xiangqi(Widget):
 
 class Piece(DragBehavior, Image):
 	def __init__(self, **args):
+		self.id_number = 0
 		self.is_active = False
 		self.previous_position = (0, 0)
 		self.side = ''
@@ -118,21 +119,53 @@ class Piece(DragBehavior, Image):
 class XiangqiApp(App):
 	def build(self):
 		root = Xiangqi()
+		other = 'black'
+		if root.turn == 'black':
+			other = 'red'
+			
 		for i in range(9):
 			piece = Piece(pos = (46 + 80 * i, 40),
-			source = './assets/black/' + order[i] + '_black.png', size = (70, 70))
-			piece.side = 'black'
+			source = './assets/' + root.turn + '/' + order[i] + '_' + root.turn + '.png', size = (70, 70))
+			piece.side = root.turn
 			piece.id_number = i + 1
-			piece.active = False
+			root.add_widget(piece)
+		
+		for i in range(2):
+			piece = Piece(pos = (126 + 6 * 80 * i, 180),
+			source = './assets/' + root.turn + '/cannon_' + root.turn + '.png', size = (70, 70))
+			piece.side = root.turn
+			piece.id_number = i + 10
+			root.add_widget(piece)
+		
+		for i in range(5):
+			piece = Piece(pos = (46 + 160 * i, 250),
+			source = './assets/' + root.turn + '/pawn_' + root.turn + '.png', size = (70, 70))
+			piece.side = root.turn
+			piece.id_number = i + 12
 			root.add_widget(piece)
 			
 		for i in range(9):
 			piece = Piece(pos = (46 + 80 * i, 700),
-			source = './assets/red/' + order[i] + '_red.png', size = (70, 70))
-			piece.side = 'red'
-			piece.id_number = i + 10
-			piece.active = False
+			source = './assets/' + other + '/' + order[i] + '_' + other + '.png', size = (70, 70))
+			piece.side = other
+			piece.id_number = i + 17
 			root.add_widget(piece)
+			
+		for i in range(2):
+			piece = Piece(pos = (126 + 6 * 80 * i, 550),
+			source = './assets/' + other + '/cannon_' + other + '.png', size = (70, 70))
+			piece.side = other
+			piece.id_number = i + 26
+			root.add_widget(piece)
+		
+		for i in range(5):
+			piece = Piece(pos = (46 + 160 * i, 480),
+			source = './assets/' + other + '/pawn_' + other + '.png', size = (70, 70))
+			piece.side = other
+			piece.id_number = i + 28
+			root.add_widget(piece)
+		
+		root.turn = 'red'
 			
 		return root
 
