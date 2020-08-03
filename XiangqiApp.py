@@ -15,11 +15,8 @@ Window.size = (800, 800)
 
 
 def is_close_enough(points_a, points_b, margin):
-	if points_a[0] - margin < points_b[0] and points_a[0] + margin > points_b[0]:
-		if points_a[1] - margin < points_b[1] and points_a[1] + margin > points_b[1]:
-			return True
-	
-	return False
+	return points_a[0] - margin < points_b[0] and points_a[0] + margin > points_b[0] and \
+	points_a[1] - margin < points_b[1] and points_a[1] + margin > points_b[1]
 
 def get_duplicate_piece(points, l, margin):
 	matching = []
@@ -28,6 +25,20 @@ def get_duplicate_piece(points, l, margin):
 			matching.append(item)
 			
 	return matching
+
+def remove_out_of_bounds(position_list, x_min, x_max, y_min, y_max):
+	result = []
+	count = 0
+	for index, position in enumerate(position_list):
+		if count > 3:
+			return result
+		if position[0] < x_min or position[0] > x_max or position[1] < y_min or position[1] > y_max:
+			count += 1
+		else:
+			result.append(position)
+				
+	return result
+			
 
 class Xiangqi(Widget):
 	pass
@@ -38,6 +49,7 @@ class Piece(DragBehavior, Image):
 		self.id_number = 0
 		self.is_active = False
 		self.previous_position = (0, 0)
+		self.valid_moves = []
 		self.side = ''
 		super(Piece, self).__init__(**args)
 	
@@ -46,33 +58,60 @@ class Piece(DragBehavior, Image):
 		print('moving to previous position, which was ' + str(self.previous_position))
 		self.pos = self.previous_position
 	
-	def is_moving_onto_ally(self, corrected_x, corrected_y):
-		positions = list(map(lambda p: [p.pos, p.source], self.parent.children)) #לקבל אחיי
-		matching = get_duplicate_piece((corrected_x, corrected_y), positions, 49) #לקבל כלים אשר נמצאים כאן
-		print('these match ' + str(matching))
-		print('i am ' + self.source)
-		if (len(matching) == 1): #רק אני בנקודה הזו. אין כלים אחרים
-			return False
+	#def is_moving_onto_ally(self, corrected_x, corrected_y): #אולי השיטה הזאת מיושנת
+		#positions = list(map(lambda p: [p.pos, p.source], self.parent.children))  #לקבל אחיי
+		#matching = get_duplicate_piece((corrected_x, corrected_y), positions, 49) #לקבל כלים אשר נמצאים כאן
+		#print('these match ' + str(matching))
+		#print('i am ' + self.source)
+		#if (len(matching) == 1): #רק אני בנקודה הזו. אין כלים אחרים
+		#	return False
 		
-		for index, match in enumerate(matching):
-			if match[0] == self.pos and match[1] == self.source and index == 0: #זה אני! אל תעשה כלום
-				continue
+		#for index, match in enumerate(matching):
+		#	if match[0] == self.pos and match[1] == self.source and index == 0: #זה אני! אל תעשה כלום
+		#		continue
 				
-			if self.side == match[1].split('_', 1)[1].split('.', 1)[0]: #יש בעיה... מישהו באותו צבע כבר כאן
+		#	if self.side == match[1].split('_', 1)[1].split('.', 1)[0]: #יש בעיה... מישהו באותו צבע כבר כאן
 				#print('now i am ' + self.source)
-				return True
+		#		return True
 				
-		return False #רק למקרה
+		#return False #רק למקרה
 	
-	#def is_valid_move(self):
-		#return not is_moving_onto_ally
-	#to be implemented in extended classes for each piece
-	
+	def get_unblocked_moves(self, move_list): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
+		result = []
+		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
+		for direction in move_list:
+			#print('direction was ' + str(direction))
+			for index, position in enumerate(direction):
+				matching = get_duplicate_piece(position, positions, 49)
+				#print('matching is ' + str(matching))
+				#if len(matching) == 1:
+					#continue
+				for match_index, match in enumerate(matching):
+					if match[0] == self.pos and match[1] == self.source and match_index == 0: #אם יש מישהו כאני
+						continue
+					
+					#print('my side is ' + self.side + ' and match side is ' + match[1].split('_', 1)[1].split('.', 1)[0])
+					if self.side == match[1].split('_', 1)[1].split('.', 1)[0]:
+						print('move to ' + str(position) + ' would move onto ally')
+						del direction[index:]
+					else:
+						print('move to ' + str(position) + ' would move onto enemy')
+						del direction[(index + 1):]
+						
+			#print('direction now ' + str(direction))			
+			result += direction
+			
+		return result
+				
+
 	def on_touch_down(self, touch):
 		if self.collide_point(*touch.pos):
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
 			print('position was ' + str(self.previous_position))
+			#print('allowed moves are: ' + str(self.get_valid_moves()))
+			self.valid_moves = self.get_valid_moves()
+			print('allowed moves are: ' + str(self.valid_moves))
 			
 		return super(Piece, self).on_touch_down(touch)
 		
@@ -105,11 +144,12 @@ class Piece(DragBehavior, Image):
 			self.x = corrected_x
 			self.y = corrected_y
 					
-			#print(corrected_x, corrected_y)
+			#print('i am moving to ' + str(corrected_x) + ',' + str(corrected_y))
 			#if (self.is_valid_move):
 			#to be implemented
 			
-			if (not self.is_moving_onto_ally(corrected_x, corrected_y)): #and self.is_valid_move)
+			#if (not self.is_moving_onto_ally(corrected_x, corrected_y)): #and self.is_valid_move)
+			if (corrected_x, corrected_y) in self.valid_moves:
 				self.x = corrected_x
 				self.y = corrected_y
 			else:
@@ -123,8 +163,30 @@ class Rook(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/rook_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
-		pass
+	def get_valid_moves(self):
+		position = self.pos
+		north, south, east, west = [], [], [], []
+		for i in range(9):
+			north_y = position[1] + 70 * (i + 1)
+			south_y = position[1] - 70 * (i + 1)
+			if north_y > 320:
+				north_y = int(north_y * 1.045)
+			if south_y > 320:
+				south_y = int(south_y * 1.045)
+				
+			north.append((position[0], north_y))
+			south.append((position[0], south_y))
+		
+		for i in range(8):
+			east_x = position[0] + 80 * (i + 1)
+			west_x = position[0] - 80 * (i + 1)
+			east.append((east_x, position[1]))
+			west.append((west_x, position[1]))
+			
+		return self.get_unblocked_moves([remove_out_of_bounds(north, 46, 686, 40, 700),
+		remove_out_of_bounds(south, 46, 686, 40, 700),
+		remove_out_of_bounds(east, 46, 686, 40, 700),
+		remove_out_of_bounds(west, 46, 686, 40, 700)])
 
 class Horse(Piece):
 	def __init__(self, side):
@@ -236,7 +298,7 @@ class XiangqiApp(App):
 			
 			board_side = 1
 			
-		#root.turn = 'red'	
+		#root.turn = 'red'
 		return root
 
 XiangqiApp().run()
