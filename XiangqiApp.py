@@ -10,15 +10,13 @@ from kivy.uix.behaviors import DragBehavior
 from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
 
-Window.size = (800, 800)
-x_step = 80
-y_step = 72
-#river_offset = 15
-#x_min_bound = 46
-#x_max_bound = 686
-#y_min_bound = 40
-#y_max_bound = 694
-bounds = [46, 686, 40, 694]
+Window.size = (800, 800) #was (800, 800)
+piece_size = Window.size[0] * 0.0875 #was 70
+x_step = Window.size[0] * 0.1 #was 80
+y_step = Window.size[0] * 0.09 #was 72
+min_bounds = [Window.size[0] * 0.05, Window.size[0] * 0.05] #was [46, 40]
+max_bounds = [min_bounds[0] + x_step * 8, min_bounds[1] + y_step * 9]
+bounds = [min_bounds[0], max_bounds[0], min_bounds[1], max_bounds[1]]
 #order = ['rook', 'horse', 'elephant', 'minister', 'general', 'minister', 'elephant', 'horse', 'rook']
 
 
@@ -57,7 +55,7 @@ class Xiangqi(Widget):
 
 class Piece(DragBehavior, Image):
 	def __init__(self, **args):
-		self.size = (70, 70)
+		self.size = (piece_size, piece_size)
 		self.id_number = 0
 		self.is_active = False
 		self.previous_position = (0, 0)
@@ -185,7 +183,7 @@ class Horse(Piece):
 		self.source = './assets/' + side + '/horse_' + side + '.png'
 	
 	def get_valid_moves(self):
-		pass
+		return []
 	
 class Elephant(Piece):
 	def __init__(self, side):
@@ -194,7 +192,7 @@ class Elephant(Piece):
 		self.source = './assets/' + side + '/elephant_' + side + '.png'
 	
 	def get_valid_moves(self):
-		pass
+		return []
 
 class Minister(Piece):
 	def __init__(self, side):
@@ -203,7 +201,7 @@ class Minister(Piece):
 		self.source = './assets/' + side + '/minister_' + side + '.png'
 	
 	def get_valid_moves(self):
-		pass
+		return []
 
 class General(Piece):
 	def __init__(self, side):
@@ -212,7 +210,7 @@ class General(Piece):
 		self.source = './assets/' + side + '/general_' + side + '.png'
 	
 	def get_valid_moves(self):
-		pass
+		return []
 
 class Cannon(Piece):
 	def __init__(self, side):
@@ -221,7 +219,7 @@ class Cannon(Piece):
 		self.source = './assets/' + side + '/cannon_' + side + '.png'
 	
 	def get_valid_moves(self):
-		pass
+		return []
 
 class Pawn(Piece):
 	def __init__(self, side):
@@ -230,9 +228,8 @@ class Pawn(Piece):
 		self.source = './assets/' + side + '/pawn_' + side + '.png'
 	
 	def get_valid_moves(self):
-		pass
+		return []
 	
-		
 	
 class XiangqiApp(App):
 	def build(self):
@@ -259,7 +256,7 @@ class XiangqiApp(App):
 					piece.pos = (bounds[0] + x_step * i, bounds[2])
 					piece.id_number = i + 1
 				else:
-					piece.pos = (bounds[0] + x_step * i, bounds[3])
+					piece.pos = (bounds[0] + x_step * i, bounds[2] + y_step * 9)
 					piece.id_number = i + 17
 				
 				root.add_widget(piece)
