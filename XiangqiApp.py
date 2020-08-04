@@ -6,15 +6,16 @@ from kivy.core.window import Window
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.relativelayout import RelativeLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.behaviors import DragBehavior
 from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
 
 Window.size = (800, 800) #was (800, 800)
-piece_size = Window.size[0] * 0.0875 #was 70
+piece_size = Window.size[0] * 0.08 #was 70
 x_step = Window.size[0] * 0.1 #was 80
 y_step = Window.size[0] * 0.09 #was 72
-min_bounds = [Window.size[0] * 0.05, Window.size[0] * 0.05] #was [46, 40]
+min_bounds = [Window.size[0] * 0.06, Window.size[0] * 0.05] #was [46, 40]
 max_bounds = [min_bounds[0] + x_step * 8, min_bounds[1] + y_step * 9]
 bounds = [min_bounds[0], max_bounds[0], min_bounds[1], max_bounds[1]]
 #order = ['rook', 'horse', 'elephant', 'minister', 'general', 'minister', 'elephant', 'horse', 'rook']
@@ -69,6 +70,7 @@ class Piece(DragBehavior, Image):
 		self.pos = self.previous_position
 	
 	def get_unblocked_moves(self, move_list): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
+		cannon_screen = (0, 0)
 		result = []
 		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
 		for direction in move_list:
@@ -81,16 +83,33 @@ class Piece(DragBehavior, Image):
 				for match_index, match in enumerate(matching):
 					if match[0] == self.pos and match[1] == self.source and match_index == 0: #אם יש מישהו כאני
 						continue
+					if 'red_dot' in match[1]:
+						continue
 					
-					#print('my side is ' + self.side + ' and match side is ' + match[1].split('_', 1)[1].split('.', 1)[0])
-					if self.side == match[1].split('_', 1)[1].split('.', 1)[0]:
-						print('move to ' + str(position) + ' would move onto ally')
-						del direction[index:]
+					is_match_ally = (self.side == match[1].split('_', 1)[1].split('.', 1)[0])
+					
+					if 'cannon' not in self.source:
+						#print('my side is ' + self.side + ' and match side is ' + match[1].split('_', 1)[1].split('.', 1)[0])
+						if is_match_ally:
+							print('move to ' + str(position) + ' would move onto ally')
+							del direction[index:]
+						else:
+							print('move to ' + str(position) + ' would move onto enemy')
+							del direction[(index + 1):]
 					else:
-						print('move to ' + str(position) + ' would move onto enemy')
-						del direction[(index + 1):]
+						if cannon_screen == (0, 0):
+							cannon_screen = match[0]
+						else:
+							if not is_match_ally:
+								print('cannon can capture on ' + str(position))
+								del direction[(index + 1):]
+							else:
+								print('cannon blocked by ally on ' + str(position))
+								del direction[index:]
 						
-			#print('direction now ' + str(direction))			
+						
+						
+			#print('direction now ' + str(direction))
 			result += direction
 			
 		return result
@@ -101,13 +120,19 @@ class Piece(DragBehavior, Image):
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
 			print('position was ' + str(self.previous_position))
-			#print('allowed moves are: ' + str(self.get_valid_moves()))
 			self.valid_moves = self.get_valid_moves()
+			for valid_move in self.valid_moves:
+				self.parent.add_widget(Image(source = './assets/red_dot.png',
+				pos = (valid_move[0] + x_step * 0.35, valid_move[1] + y_step * 0.43), size = (10, 10)))
 			print('allowed moves are: ' + str(self.valid_moves))
 			
 		return super(Piece, self).on_touch_down(touch)
 		
-	def on_touch_up(self, touch):	
+	def on_touch_up(self, touch):
+		for child in self.parent.children:
+				if child.source == './assets/red_dot.png':
+					self.parent.remove_widget(child)
+					
 		if self.collide_point(*touch.pos):
 			if not self.is_active:
 				print('i am an imposter and invalid move detected')
@@ -119,8 +144,8 @@ class Piece(DragBehavior, Image):
 				#self.handle_invalid_move()
 			
 			#else: bounds = [46, 686, 40, 694]
-			corrected_x = bounds[0] + int(math.floor(self.x / x_step)) * x_step
-			corrected_y = bounds[2] + int(math.floor(self.y / y_step)) * y_step
+			corrected_x = int(bounds[0] + int(math.floor(self.x / x_step)) * x_step)
+			corrected_y = int(bounds[2] + int(math.floor(self.y / y_step)) * y_step)
 			#if (corrected_y > y_min_bound + y_step * 4):
 				#corrected_y += river_offset
 			
@@ -159,15 +184,15 @@ class Rook(Piece):
 		position = self.pos
 		north, south, east, west = [], [], [], []
 		for i in range(9):
-			north_y = position[1] + y_step * (i + 1)
-			south_y = position[1] - y_step * (i + 1)
+			north_y = int(position[1] + y_step * (i + 1))
+			south_y = int(position[1] - y_step * (i + 1))
 			
 			north.append((position[0], north_y))
 			south.append((position[0], south_y))
 		
 		for i in range(8):
-			east_x = position[0] + 80 * (i + 1)
-			west_x = position[0] - 80 * (i + 1)
+			east_x = int(position[0] + 80 * (i + 1))
+			west_x = int(position[0] - 80 * (i + 1))
 			east.append((east_x, position[1]))
 			west.append((west_x, position[1]))
 			
@@ -234,6 +259,7 @@ class Pawn(Piece):
 class XiangqiApp(App):
 	def build(self):
 		root = Xiangqi()
+		
 		other = 'black'
 		if root.host == 'black':
 			other = 'red'
