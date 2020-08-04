@@ -151,8 +151,12 @@ class Piece(DragBehavior, Image):
 			
 			dot_layout = FloatLayout()
 			for valid_move in self.valid_moves:
+				dot_x = valid_move[0] + x_step * 0.34
+				dot_y = valid_move[1] + y_step * 0.395
+				if valid_move[1] > bounds[2] + y_step * 4:
+					dot_y += 5
 				dot_layout.add_widget(Image(source = './assets/red_dot.png', color = (255, 0, 0, 0.5),
-				pos = (valid_move[0] + x_step * 0.35, valid_move[1] + 32), size_hint = (0.1, 0.1)))
+				pos = (dot_x, dot_y), size_hint = (0.1, 0.1)))
 			self.parent.add_widget(dot_layout, 1)
 
 			print('allowed moves are: ' + str(self.valid_moves))
