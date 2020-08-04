@@ -11,6 +11,14 @@ from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
 
 Window.size = (800, 800)
+x_step = 80
+y_step = 72
+#river_offset = 15
+#x_min_bound = 46
+#x_max_bound = 686
+#y_min_bound = 40
+#y_max_bound = 694
+bounds = [46, 686, 40, 694]
 #order = ['rook', 'horse', 'elephant', 'minister', 'general', 'minister', 'elephant', 'horse', 'rook']
 
 
@@ -26,7 +34,11 @@ def get_duplicate_piece(points, l, margin):
 			
 	return matching
 
-def remove_out_of_bounds(position_list, x_min, x_max, y_min, y_max):
+def remove_out_of_bounds(position_list, bound_list):
+	x_min = bound_list[0]
+	x_max = bound_list[1]
+	y_min = bound_list[2]
+	y_max = bound_list[3]
 	result = []
 	count = 0
 	for index, position in enumerate(position_list):
@@ -57,24 +69,6 @@ class Piece(DragBehavior, Image):
 		print('handling invalid move')
 		print('moving to previous position, which was ' + str(self.previous_position))
 		self.pos = self.previous_position
-	
-	#def is_moving_onto_ally(self, corrected_x, corrected_y): #אולי השיטה הזאת מיושנת
-		#positions = list(map(lambda p: [p.pos, p.source], self.parent.children))  #לקבל אחיי
-		#matching = get_duplicate_piece((corrected_x, corrected_y), positions, 49) #לקבל כלים אשר נמצאים כאן
-		#print('these match ' + str(matching))
-		#print('i am ' + self.source)
-		#if (len(matching) == 1): #רק אני בנקודה הזו. אין כלים אחרים
-		#	return False
-		
-		#for index, match in enumerate(matching):
-		#	if match[0] == self.pos and match[1] == self.source and index == 0: #זה אני! אל תעשה כלום
-		#		continue
-				
-		#	if self.side == match[1].split('_', 1)[1].split('.', 1)[0]: #יש בעיה... מישהו באותו צבע כבר כאן
-				#print('now i am ' + self.source)
-		#		return True
-				
-		#return False #רק למקרה
 	
 	def get_unblocked_moves(self, move_list): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
 		result = []
@@ -115,7 +109,7 @@ class Piece(DragBehavior, Image):
 			
 		return super(Piece, self).on_touch_down(touch)
 		
-	def on_touch_up(self, touch):		
+	def on_touch_up(self, touch):	
 		if self.collide_point(*touch.pos):
 			if not self.is_active:
 				print('i am an imposter and invalid move detected')
@@ -126,25 +120,25 @@ class Piece(DragBehavior, Image):
 			#if (self.parent.active_piece_moving_onto == self.side): #כאן אני מנסה למצוא בעיה אפשרית מוקדם ככל האפשר
 				#self.handle_invalid_move()
 			
-			#else:			
-			corrected_x = 46 + int(math.floor(self.x / 80.0)) * 80
-			corrected_y = 40 + int(math.floor(self.y / 70.0)) * 70
-			if (corrected_y > 320):
-				corrected_y = int(corrected_y * 1.045)
+			#else: bounds = [46, 686, 40, 694]
+			corrected_x = bounds[0] + int(math.floor(self.x / x_step)) * x_step
+			corrected_y = bounds[2] + int(math.floor(self.y / y_step)) * y_step
+			#if (corrected_y > y_min_bound + y_step * 4):
+				#corrected_y += river_offset
 			
-			if corrected_x < 46:
-				corrected_x = 46
-			if corrected_x > 686:
-				corrected_x = 686
-			if corrected_y < 40:
-				corrected_y = 40
-			if corrected_y > 700:
-				corrected_y = 700
+			if corrected_x < bounds[0]:
+				corrected_x = bounds[0]
+			if corrected_x > bounds[1]:
+				corrected_x = bounds[1]
+			if corrected_y < bounds[2]:
+				corrected_y = bounds[2]
+			if corrected_y > bounds[3]:
+				corrected_y = bounds[3]
 			
 			self.x = corrected_x
 			self.y = corrected_y
 					
-			#print('i am moving to ' + str(corrected_x) + ',' + str(corrected_y))
+			print('i am moving to ' + str(corrected_x) + ',' + str(corrected_y))
 			#if (self.is_valid_move):
 			#to be implemented
 			
@@ -167,13 +161,9 @@ class Rook(Piece):
 		position = self.pos
 		north, south, east, west = [], [], [], []
 		for i in range(9):
-			north_y = position[1] + 70 * (i + 1)
-			south_y = position[1] - 70 * (i + 1)
-			if north_y > 320:
-				north_y = int(north_y * 1.045)
-			if south_y > 320:
-				south_y = int(south_y * 1.045)
-				
+			north_y = position[1] + y_step * (i + 1)
+			south_y = position[1] - y_step * (i + 1)
+			
 			north.append((position[0], north_y))
 			south.append((position[0], south_y))
 		
@@ -183,10 +173,10 @@ class Rook(Piece):
 			east.append((east_x, position[1]))
 			west.append((west_x, position[1]))
 			
-		return self.get_unblocked_moves([remove_out_of_bounds(north, 46, 686, 40, 700),
-		remove_out_of_bounds(south, 46, 686, 40, 700),
-		remove_out_of_bounds(east, 46, 686, 40, 700),
-		remove_out_of_bounds(west, 46, 686, 40, 700)])
+		return self.get_unblocked_moves([remove_out_of_bounds(north, bounds),
+		remove_out_of_bounds(south, bounds),
+		remove_out_of_bounds(east, bounds),
+		remove_out_of_bounds(west, bounds)])
 
 class Horse(Piece):
 	def __init__(self, side):
@@ -194,7 +184,7 @@ class Horse(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/horse_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
+	def get_valid_moves(self):
 		pass
 	
 class Elephant(Piece):
@@ -203,7 +193,7 @@ class Elephant(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/elephant_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
+	def get_valid_moves(self):
 		pass
 
 class Minister(Piece):
@@ -212,7 +202,7 @@ class Minister(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/minister_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
+	def get_valid_moves(self):
 		pass
 
 class General(Piece):
@@ -221,7 +211,7 @@ class General(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/general_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
+	def get_valid_moves(self):
 		pass
 
 class Cannon(Piece):
@@ -230,7 +220,7 @@ class Cannon(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/cannon_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
+	def get_valid_moves(self):
 		pass
 
 class Pawn(Piece):
@@ -239,7 +229,7 @@ class Pawn(Piece):
 		self.side = side
 		self.source = './assets/' + side + '/pawn_' + side + '.png'
 	
-	def get_valid_moves(self, pos_x, pos_y):
+	def get_valid_moves(self):
 		pass
 	
 		
@@ -266,10 +256,10 @@ class XiangqiApp(App):
 				elif i == 4:
 					piece = General(sides[side_index])
 				if side_index == 0:
-					piece.pos = (46 + 80 * i, 40)
+					piece.pos = (bounds[0] + x_step * i, bounds[2])
 					piece.id_number = i + 1
 				else:
-					piece.pos = (46 + 80 * i, 700)
+					piece.pos = (bounds[0] + x_step * i, bounds[3])
 					piece.id_number = i + 17
 				
 				root.add_widget(piece)
@@ -277,10 +267,12 @@ class XiangqiApp(App):
 			for i in range(2):
 				piece = Cannon(sides[side_index])
 				if side_index == 0:
-					piece.pos = (126 + 6 * 80 * i, 180)
+					piece.pos = (bounds[0] + x_step + 6 * x_step * i, bounds[2] + y_step * 2)
+					#piece.pos = (126 + 6 * 80 * i, 180)
 					piece.id_number = i + 10
 				else:
-					piece.pos = (126 + 6 * 80 * i, 550)
+					piece.pos = (bounds[0] + x_step + 6 * x_step * i, bounds[2] + y_step * 7) 
+					#piece.pos = (126 + 6 * 80 * i, 550)
 					piece.id_number = i + 26
 				
 				root.add_widget(piece)
@@ -288,10 +280,12 @@ class XiangqiApp(App):
 			for i in range(5):
 				piece = Pawn(sides[side_index])
 				if side_index == 0:
-					piece.pos = (46 + 160 * i, 250)
+					piece.pos = (bounds[0] + 2 * x_step * i, bounds[2] + y_step * 3)
+					#piece.pos = (46 + 160 * i, 250)
 					piece.id_number = i + 12
 				else:
-					piece.pos = (46 + 160 * i, 480)
+					piece.pos = (bounds[0] + 2 * x_step * i, bounds[2] + y_step * 6)
+					#piece.pos = (46 + 160 * i, 480)
 					piece.id_number = i + 28
 					
 				root.add_widget(piece)
