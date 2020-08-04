@@ -1,4 +1,5 @@
 import math
+from copy import deepcopy
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
@@ -12,9 +13,9 @@ from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
 
 Window.size = (800, 800) #was (800, 800)
-piece_size = Window.size[0] * 0.08 #was 70
-x_step = Window.size[0] * 0.1 #was 80
-y_step = Window.size[0] * 0.09 #was 72
+piece_size = Window.size[0] * 0.08
+x_step = Window.size[0] * 0.1
+y_step = Window.size[0] * 0.09
 min_bounds = [Window.size[0] * 0.06, Window.size[0] * 0.05] #was [46, 40]
 max_bounds = [min_bounds[0] + x_step * 8, min_bounds[1] + y_step * 9]
 bounds = [min_bounds[0], max_bounds[0], min_bounds[1], max_bounds[1]]
@@ -52,7 +53,18 @@ def remove_out_of_bounds(position_list, bound_list):
 			
 
 class Xiangqi(Widget):
-	pass
+	def bring_to_front(self, widget):
+		for child in self.children:
+			if child == widget:
+				self.remove_widget(widget)
+				self.add_widget(widget)
+				
+	def send_to_back(self, widget):
+		for child in self.children:
+			if child == widget:
+				self.remove_widget(widget)
+				self.add_widget(widget, -1)
+	#pass
 
 class Piece(DragBehavior, Image):
 	def __init__(self, **args):
@@ -61,6 +73,7 @@ class Piece(DragBehavior, Image):
 		self.is_active = False
 		self.previous_position = (0, 0)
 		self.valid_moves = []
+		self.capture_moves = []
 		self.side = ''
 		super(Piece, self).__init__(**args)
 	
@@ -69,8 +82,16 @@ class Piece(DragBehavior, Image):
 		print('moving to previous position, which was ' + str(self.previous_position))
 		self.pos = self.previous_position
 	
+	def handle_capture(self, position):
+		print('handling capture')
+		for piece in self.parent.children:
+			if (piece.pos[0], piece.pos[1]) == position and piece.side != self.side:
+				print('removing captured piece at ' + str(position))
+				self.parent.remove_widget(piece)
+				return
+	
 	def get_unblocked_moves(self, move_list): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
-		cannon_screen = (0, 0)
+		cannon_screen_index = -1
 		result = []
 		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
 		for direction in move_list:
@@ -96,19 +117,24 @@ class Piece(DragBehavior, Image):
 						else:
 							print('move to ' + str(position) + ' would move onto enemy')
 							del direction[(index + 1):]
+							self.capture_moves.append(position)
 					else:
-						if cannon_screen == (0, 0):
-							cannon_screen = match[0]
+						if cannon_screen_index == -1:
+							cannon_screen_index = index
 						else:
 							if not is_match_ally:
 								print('cannon can capture on ' + str(position))
-								del direction[(index + 1):]
+								direction.append(position)
+								self.capture_moves.append(position)
+								#del direction[cannon_screen_index:]
+								#del direction[(index + 1):]
 							else:
 								print('cannon blocked by ally on ' + str(position))
-								del direction[index:]
-						
-						
-						
+								#del direction[cannon_screen_index:]
+								#del direction[index:]
+								
+							del direction[cannon_screen_index:]
+							
 			#print('direction now ' + str(direction))
 			result += direction
 			
@@ -117,23 +143,29 @@ class Piece(DragBehavior, Image):
 
 	def on_touch_down(self, touch):
 		if self.collide_point(*touch.pos):
+			self.parent.bring_to_front(self)
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
 			print('position was ' + str(self.previous_position))
 			self.valid_moves = self.get_valid_moves()
+			
+			dot_layout = FloatLayout()
 			for valid_move in self.valid_moves:
-				self.parent.add_widget(Image(source = './assets/red_dot.png',
-				pos = (valid_move[0] + x_step * 0.35, valid_move[1] + y_step * 0.43), size = (10, 10)))
+				dot_layout.add_widget(Image(source = './assets/red_dot.png', color = (255, 0, 0, 0.5),
+				pos = (valid_move[0] + x_step * 0.35, valid_move[1] + 32), size_hint = (0.1, 0.1)))
+			self.parent.add_widget(dot_layout, 1)
+
 			print('allowed moves are: ' + str(self.valid_moves))
 			
 		return super(Piece, self).on_touch_down(touch)
 		
 	def on_touch_up(self, touch):
-		for child in self.parent.children:
-				if child.source == './assets/red_dot.png':
-					self.parent.remove_widget(child)
-					
 		if self.collide_point(*touch.pos):
+			self.parent.send_to_back(self)
+			for child in self.parent.children:
+				if isinstance(child, FloatLayout):
+					self.parent.remove_widget(child)
+
 			if not self.is_active:
 				print('i am an imposter and invalid move detected')
 				#self.parent.active_piece_moving_onto = self.side
@@ -162,13 +194,14 @@ class Piece(DragBehavior, Image):
 			self.y = corrected_y
 					
 			print('i am moving to ' + str(corrected_x) + ',' + str(corrected_y))
-			#if (self.is_valid_move):
-			#to be implemented
 			
-			#if (not self.is_moving_onto_ally(corrected_x, corrected_y)): #and self.is_valid_move)
 			if (corrected_x, corrected_y) in self.valid_moves:
+				if (corrected_x, corrected_y) in self.capture_moves:
+					self.handle_capture((corrected_x, corrected_y))
+				
 				self.x = corrected_x
 				self.y = corrected_y
+				
 			else:
 				self.handle_invalid_move()
 			
@@ -259,6 +292,8 @@ class Pawn(Piece):
 class XiangqiApp(App):
 	def build(self):
 		root = Xiangqi()
+		#piece_layout = FloatLayout()
+		#root.add_widget(piece_layout)
 		
 		other = 'black'
 		if root.host == 'black':
