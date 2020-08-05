@@ -463,7 +463,18 @@ class Pawn(Piece):
 		self.source = './assets/' + side + '/pawn_' + side + '.png'
 	
 	def get_valid_moves(self):
-		return []
+		result = []
+		if self.side == 'red':
+			result.append((self.pos[0], self.pos[1] + y_step))
+		else:
+			result.append((self.pos[0], self.pos[1] - y_step))
+				
+		if self.side == 'red' and self.pos[1] > bounds[2] + y_step * 4 or \
+		self.side == 'black' and self.pos[1] < bounds[3] - y_step * 4:
+				result.append((self.pos[0] - x_step, self.pos[1]))
+				result.append((self.pos[0] + x_step, self.pos[1]))
+		
+		return self.get_unblocked_moves([remove_out_of_bounds(result, bounds)], passed_by_direction = False)
 	
 	
 class XiangqiApp(App):
