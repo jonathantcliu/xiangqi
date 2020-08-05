@@ -40,13 +40,14 @@ def remove_out_of_bounds(position_list, bound_list):
 	y_min = bound_list[2]
 	y_max = bound_list[3]
 	result = []
-	count = 0
+	#count = 0
 	for index, position in enumerate(position_list):
-		if count > 3:
-			return result
-		if position[0] < x_min or position[0] > x_max or position[1] < y_min or position[1] > y_max:
-			count += 1
-		else:
+		#position = pos
+		#if count > 3:
+			#return result
+		#if isinstance(position, list):
+			#position = pos[0]
+		if not (position[0] < x_min or position[0] > x_max or position[1] < y_min or position[1] > y_max):
 			result.append(position)
 				
 	return result
@@ -90,7 +91,7 @@ class Piece(DragBehavior, Image):
 				self.parent.remove_widget(piece)
 				self.capture_moves = []
 	
-	def get_unblocked_moves(self, move_list): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
+	def get_unblocked_moves(self, move_list, passed_by_direction = True): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
 		cannon_screen_index = -1
 		cannon_capture_found = False
 		#cannon_screen_position = (0, 0)
@@ -98,8 +99,9 @@ class Piece(DragBehavior, Image):
 		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
 		#print(positions)
 		for direction in move_list:
-			#print('direction was ' + str(direction))
+			print('direction was ' + str(direction))
 			for index, position in enumerate(direction):
+				print('checking position ' + str(position))
 				matching = get_duplicate_piece(position, positions, 49)
 				#print('matching is ' + str(matching))
 				#if len(matching) == 1:
@@ -115,18 +117,21 @@ class Piece(DragBehavior, Image):
 					if cannon_screen_index == -1:
 						#print('my side is ' + self.side + ' and match side is ' + match[1].split('_', 1)[1].split('.', 1)[0])
 						if is_match_ally:
-							#print('move to ' + str(position) + ' would move onto ally')
-							del direction[index:]
+							if passed_by_direction:
+								del direction[index:]
+							else:
+								direction = list(filter(lambda pos: pos != position, direction))
 						else:
 							if 'cannon' not in self.source:
-								print(match)
-								#print('move to ' + str(position) + ' would move onto enemy')
-								del direction[(index + 1):]
-								print('found capture, not cannon')
+								if passed_by_direction:
+									del direction[(index + 1):]
+								else:
+									print('can capture at position ' + str(position))
+									
 								if position not in self.capture_moves:
 									self.capture_moves.append(position)
 							else:
-								print('found cannon screen at ' + str(position))
+								#print('found cannon screen at ' + str(position))
 								cannon_screen_index = index
 								if position == direction[-1]: #screen to nowhere!
 									del direction[cannon_screen_index:]
@@ -135,11 +140,11 @@ class Piece(DragBehavior, Image):
 							
 					elif 'cannon' in self.source:
 						if not is_match_ally:
-							print('cannon can capture on ' + str(position))
+							#print('cannon can capture on ' + str(position))
 							cannon_capture_found = True
 							result.append(position)
 							if position not in self.capture_moves:
-								print('added to capture moves')
+								#print('added to capture moves')
 								self.capture_moves.append(position)
 							#print('added to capture moves, which are now ' + str(self.capture_moves))
 						else:
@@ -164,21 +169,18 @@ class Piece(DragBehavior, Image):
 		for piece in other_pieces:
 			piece.valid_moves = piece.get_valid_moves()
 			if position in piece.valid_moves:
-				print('danger danger')
 				return True
 				
 		return False
 
 	def on_touch_down(self, touch):
 		if self.collide_point(*touch.pos):
-			#test
 			print('am i in danger? answer is ' + str(self.is_in_danger()))
 			self.capture_moves = []
-			#test
+			
 			self.parent.bring_to_front(self)
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
-			#print('position was ' + str(self.previous_position))
 			self.valid_moves = self.get_valid_moves()
 			
 			dot_layout = FloatLayout()
@@ -210,19 +212,10 @@ class Piece(DragBehavior, Image):
 					self.parent.remove_widget(child)
 
 			if not self.is_active:
-				#print('i am being moved on')
-				#self.parent.active_piece_moving_onto = self.side
-				#זיכרון בתמורה ליעילות. האם זה שווה את זה? 
 				return True
-				
-			#if (self.parent.active_piece_moving_onto == self.side): #כאן אני מנסה למצוא בעיה אפשרית מוקדם ככל האפשר
-				#self.handle_invalid_move()
-			
-			#else: bounds = [46, 686, 40, 694]
+
 			corrected_x = int(bounds[0] + int(math.floor(self.x / x_step)) * x_step)
 			corrected_y = int(bounds[2] + int(math.floor(self.y / y_step)) * y_step)
-			#if (corrected_y > y_min_bound + y_step * 4):
-				#corrected_y += river_offset
 			
 			if corrected_x < bounds[0]:
 				corrected_x = bounds[0]
@@ -236,10 +229,10 @@ class Piece(DragBehavior, Image):
 			self.x = corrected_x
 			self.y = corrected_y
 					
-			print('i was told to move to ' + str(corrected_x) + ',' + str(corrected_y))
+			#print('i was told to move to ' + str(corrected_x) + ',' + str(corrected_y))
 			
-			print('my valid moves are ' + str(self.valid_moves))
-			print('my capture moves are ' + str(self.capture_moves))
+			#print('my valid moves are ' + str(self.valid_moves))
+			#print('my capture moves are ' + str(self.capture_moves))
 			if (corrected_x, corrected_y) in self.valid_moves:
 				if (corrected_x, corrected_y) in self.capture_moves:
 					self.handle_capture((corrected_x, corrected_y))
@@ -286,7 +279,29 @@ class Horse(Piece):
 		self.source = './assets/' + side + '/horse_' + side + '.png'
 	
 	def get_valid_moves(self):
-		return []
+		position = self.pos
+		moves = []
+		horse_legs = [(position[0] + x_step, position[1]),
+		(position[0] - x_step, position[1]),
+		(position[0], position[1] - y_step),
+		(position[0], position[1] + y_step)]
+		for piece in self.parent.children:
+			if (piece.pos[0], piece.pos[1]) in horse_legs:
+				index = horse_legs.index((piece.pos[0], piece.pos[1]))
+				horse_legs[index] = (0, 0)
+		
+		for index, leg in enumerate(horse_legs):
+			print('checking leg ' + str(leg))
+			if index < 2 and leg != (0, 0):
+				moves.append((leg[0], leg[1] + y_step))
+				moves.append((leg[0], leg[1] - y_step))
+			elif index > 1 and leg != (0, 0):
+				moves.append((leg[0] - x_step, leg[1]))
+				moves.append((leg[0] + x_step, leg[1]))
+		
+		#print(moves)
+		return self.get_unblocked_moves([remove_out_of_bounds(moves, bounds)], passed_by_direction = False)
+		#return []
 	
 class Elephant(Piece):
 	def __init__(self, side):
@@ -295,7 +310,28 @@ class Elephant(Piece):
 		self.source = './assets/' + side + '/elephant_' + side + '.png'
 	
 	def get_valid_moves(self):
-		return []
+		position = self.pos
+		northeast, southeast, southwest, northwest = [], [], [], []
+		northeast_offset = (x_step * 2, y_step * 2)
+		southeast_offset = (x_step * 2, y_step * -2)
+		southwest_offset = (x_step * -2, y_step * -2)
+		northwest_offset = (x_step * -2, y_step * 2)
+		for i in range(4):
+			if i == 0:
+				northeast.append((position[0] + northeast_offset[0], position[1] + northeast_offset[1]))
+			elif i == 1:
+				southeast.append((position[0] + southeast_offset[0], position[1] + southeast_offset[1]))
+			if i == 2:
+				southwest.append((position[0] + southwest_offset[0], position[1] + southwest_offset[1]))
+			if i == 3:
+				northwest.append((position[0] + northwest_offset[0], position[1] + northwest_offset[1]))
+		
+		elephant_bounds = [min_bounds[0], max_bounds[0], min_bounds[1], min_bounds[1] + y_step * 4]
+		
+		return self.get_unblocked_moves([remove_out_of_bounds(northeast, elephant_bounds),
+		remove_out_of_bounds(southeast, elephant_bounds),
+		remove_out_of_bounds(southwest, elephant_bounds),
+		remove_out_of_bounds(northwest, elephant_bounds)])
 
 class Minister(Piece):
 	def __init__(self, side):
