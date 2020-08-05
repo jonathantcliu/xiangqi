@@ -179,9 +179,12 @@ class Piece(DragBehavior, Image):
 			self.parent.bring_to_front(self)
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
+			if 'general' not in self.source:
+				self.capture_moves = []
 			self.valid_moves = self.get_valid_moves()
 			if 'general' in self.source:
 				self.valid_moves += self.capture_moves
+
 			print('am i in danger? answer is ' + str(self.is_in_danger()))
 			
 			dot_layout = FloatLayout()
