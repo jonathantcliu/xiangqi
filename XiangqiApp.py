@@ -99,9 +99,9 @@ class Piece(DragBehavior, Image):
 		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
 		#print(positions)
 		for direction in move_list:
-			print('direction was ' + str(direction))
+			#print('direction was ' + str(direction))
 			for index, position in enumerate(direction):
-				print('checking position ' + str(position))
+				#print('checking position ' + str(position))
 				matching = get_duplicate_piece(position, positions, 49)
 				#print('matching is ' + str(matching))
 				#if len(matching) == 1:
@@ -167,8 +167,10 @@ class Piece(DragBehavior, Image):
 			
 		other_pieces = [piece for piece in self.parent.children if piece != self]
 		for piece in other_pieces:
+			#print('checking piece at' + str(piece.pos))
 			piece.valid_moves = piece.get_valid_moves()
 			if position in piece.valid_moves or position in piece.capture_moves:
+				print('i am in danger from ' + str(position))
 				return True
 				
 		return False
@@ -179,11 +181,13 @@ class Piece(DragBehavior, Image):
 			self.parent.bring_to_front(self)
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
-			if 'general' not in self.source:
-				self.capture_moves = []
+			#if 'general' not in self.source:
+			self.capture_moves = []
 			self.valid_moves = self.get_valid_moves()
-			if 'general' in self.source:
-				self.valid_moves += self.capture_moves
+			#if 'general' in self.source:
+				#self.valid_moves += self.capture_moves
+			print('my valid moves are ' + str(self.valid_moves))
+			print('my capture moves are ' + str(self.capture_moves))
 
 			print('am i in danger? answer is ' + str(self.is_in_danger()))
 			
@@ -294,7 +298,7 @@ class Horse(Piece):
 				horse_legs[index] = (0, 0)
 		
 		for index, leg in enumerate(horse_legs):
-			print('checking leg ' + str(leg))
+			#print('checking leg ' + str(leg))
 			if index < 2 and leg != (0, 0):
 				moves.append((leg[0], leg[1] + y_step))
 				moves.append((leg[0], leg[1] - y_step))
@@ -329,7 +333,10 @@ class Elephant(Piece):
 			if i == 3:
 				northwest.append((position[0] + northwest_offset[0], position[1] + northwest_offset[1]))
 		
-		elephant_bounds = [min_bounds[0], max_bounds[0], min_bounds[1], min_bounds[1] + y_step * 4]
+		if self.side == 'red':
+			elephant_bounds = [min_bounds[0], max_bounds[0], min_bounds[1], min_bounds[1] + y_step * 4]
+		else:
+			elephant_bounds = [min_bounds[0], max_bounds[0], min_bounds[1] + y_step * 5, max_bounds[1]]
 		
 		return self.get_unblocked_moves([remove_out_of_bounds(northeast, elephant_bounds),
 		remove_out_of_bounds(southeast, elephant_bounds),
@@ -360,7 +367,10 @@ class Minister(Piece):
 			if i == 3:
 				northwest.append((position[0] + northwest_offset[0], position[1] + northwest_offset[1]))
 		
-		minister_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
+		if self.side == 'red':
+			minister_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
+		else:
+			minister_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, max_bounds[1] - y_step * 2, max_bounds[1]]
 		
 		return self.get_unblocked_moves([remove_out_of_bounds(northeast, minister_bounds),
 		remove_out_of_bounds(southeast, minister_bounds),
@@ -392,20 +402,32 @@ class General(Piece):
 				west.append((position[0] + west_offset[0], position[1] + west_offset[1]))
 		
 		#perform 飛將 check
-		found_general_screen = False
-		same_file = [piece for piece in self.parent.children if (piece != self and self.pos[0] == piece.pos[0])]
-		for piece in same_file:
-			if 'general' not in piece.source:
-				found_general_screen = True
-			elif found_general_screen:
-				self.capture_moves.append(piece.pos)
+		general_pos = []
+		same_file = [piece for piece in self.parent.children if (self.pos[0] == piece.pos[0])]
+		if same_file:
+			same_file.sort(key = lambda p: p.pos[1])
+			print('same file has ' + str(same_file))
 		
-		general_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
+		for x, y in zip(same_file, same_file[1:]):
+			if 'general' in x.source and 'general' in y.source:
+				print('no screen')
+				if x == self:
+					self.capture_moves.append(y.pos)
+					general_pos.append(y.pos)
+				else:
+					self.capture_moves.append(x.pos)
+					general_pos.append(x.pos)
+					
+		
+		if self.side == 'red':
+			general_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
+		else:
+			general_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, max_bounds[1] - y_step * 2, max_bounds[1]]
+			
 		return self.get_unblocked_moves([remove_out_of_bounds(north, general_bounds),
 		remove_out_of_bounds(south, general_bounds),
 		remove_out_of_bounds(east, general_bounds),
-		remove_out_of_bounds(west, general_bounds)])
-		
+		remove_out_of_bounds(west, general_bounds)]) + general_pos
 
 class Cannon(Piece):
 	def __init__(self, side):
