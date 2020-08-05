@@ -168,20 +168,21 @@ class Piece(DragBehavior, Image):
 		other_pieces = [piece for piece in self.parent.children if piece != self]
 		for piece in other_pieces:
 			piece.valid_moves = piece.get_valid_moves()
-			if position in piece.valid_moves:
+			if position in piece.valid_moves or position in piece.capture_moves:
 				return True
 				
 		return False
 
 	def on_touch_down(self, touch):
 		if self.collide_point(*touch.pos):
-			print('am i in danger? answer is ' + str(self.is_in_danger()))
-			self.capture_moves = []
-			
+			#print('am i in danger? answer is ' + str(self.is_in_danger()))
 			self.parent.bring_to_front(self)
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
 			self.valid_moves = self.get_valid_moves()
+			if 'general' in self.source:
+				self.valid_moves += self.capture_moves
+			print('am i in danger? answer is ' + str(self.is_in_danger()))
 			
 			dot_layout = FloatLayout()
 			for valid_move in self.valid_moves:
@@ -257,13 +258,12 @@ class Rook(Piece):
 		for i in range(9):
 			north_y = int(position[1] + y_step * (i + 1))
 			south_y = int(position[1] - y_step * (i + 1))
-			
 			north.append((position[0], north_y))
 			south.append((position[0], south_y))
 		
 		for i in range(8):
-			east_x = int(position[0] + 80 * (i + 1))
-			west_x = int(position[0] - 80 * (i + 1))
+			east_x = int(position[0] + x_step * (i + 1))
+			west_x = int(position[0] - x_step * (i + 1))
 			east.append((east_x, position[1]))
 			west.append((west_x, position[1]))
 			
@@ -340,7 +340,29 @@ class Minister(Piece):
 		self.source = './assets/' + side + '/minister_' + side + '.png'
 	
 	def get_valid_moves(self):
-		return []
+		position = self.pos
+		northeast, southeast, southwest, northwest = [], [], [], []
+		northeast_offset = (x_step, y_step)
+		southeast_offset = (x_step, -y_step)
+		southwest_offset = (-x_step, -y_step)
+		northwest_offset = (-x_step, y_step)
+		
+		for i in range(4):
+			if i == 0:
+				northeast.append((position[0] + northeast_offset[0], position[1] + northeast_offset[1]))
+			elif i == 1:
+				southeast.append((position[0] + southeast_offset[0], position[1] + southeast_offset[1]))
+			if i == 2:
+				southwest.append((position[0] + southwest_offset[0], position[1] + southwest_offset[1]))
+			if i == 3:
+				northwest.append((position[0] + northwest_offset[0], position[1] + northwest_offset[1]))
+		
+		minister_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
+		
+		return self.get_unblocked_moves([remove_out_of_bounds(northeast, minister_bounds),
+		remove_out_of_bounds(southeast, minister_bounds),
+		remove_out_of_bounds(southwest, minister_bounds),
+		remove_out_of_bounds(northwest, minister_bounds)])
 
 class General(Piece):
 	def __init__(self, side):
@@ -349,7 +371,38 @@ class General(Piece):
 		self.source = './assets/' + side + '/general_' + side + '.png'
 	
 	def get_valid_moves(self):
-		return []
+		position = self.pos
+		north, south, east, west = [], [], [], []
+		north_offset = (0, y_step)
+		south_offset = (0, -y_step)
+		east_offset = (x_step, 0)
+		west_offset = (-x_step, 0)
+		
+		for i in range(4):
+			if i == 0:
+				north.append((position[0] + north_offset[0], position[1] + north_offset[1]))
+			elif i == 1:
+				south.append((position[0] + south_offset[0], position[1] + south_offset[1]))
+			if i == 2:
+				east.append((position[0] + east_offset[0], position[1] + east_offset[1]))
+			if i == 3:
+				west.append((position[0] + west_offset[0], position[1] + west_offset[1]))
+		
+		#perform 飛將 check
+		found_general_screen = False
+		same_file = [piece for piece in self.parent.children if (piece != self and self.pos[0] == piece.pos[0])]
+		for piece in same_file:
+			if 'general' not in piece.source:
+				found_general_screen = True
+			elif found_general_screen:
+				self.capture_moves.append(piece.pos)
+		
+		general_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
+		return self.get_unblocked_moves([remove_out_of_bounds(north, general_bounds),
+		remove_out_of_bounds(south, general_bounds),
+		remove_out_of_bounds(east, general_bounds),
+		remove_out_of_bounds(west, general_bounds)])
+		
 
 class Cannon(Piece):
 	def __init__(self, side):
