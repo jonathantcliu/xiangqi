@@ -507,7 +507,7 @@ class XiangqiApp(App):
 				else:
 					piece.pos = (bounds[0] + x_step * i, bounds[2] + y_step * 9)
 					piece.id_number = i + 17
-				
+					
 				root.add_widget(piece)
 			
 			for i in range(2):
