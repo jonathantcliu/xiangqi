@@ -42,11 +42,6 @@ def remove_out_of_bounds(position_list, bound_list):
 	result = []
 	#count = 0
 	for index, position in enumerate(position_list):
-		#position = pos
-		#if count > 3:
-			#return result
-		#if isinstance(position, list):
-			#position = pos[0]
 		if not (position[0] < x_min or position[0] > x_max or position[1] < y_min or position[1] > y_max):
 			result.append(position)
 				
@@ -65,7 +60,13 @@ class Xiangqi(Widget):
 			if child == widget:
 				self.remove_widget(widget)
 				self.add_widget(widget, -1)
-	#pass
+	
+	def find_piece(self, position):
+		for piece in self.children:
+			if (piece.pos[0], piece.pos[1]) == position:
+				return piece
+		return None
+		
 
 class Piece(DragBehavior, Image):
 	def __init__(self, **args):
@@ -91,31 +92,44 @@ class Piece(DragBehavior, Image):
 				self.parent.remove_widget(piece)
 				self.capture_moves = []
 	
+	def is_check_after_move(self, position):
+		danger = False
+		is_occupied = self.parent.find_piece(position)
+		if is_occupied:
+			print('next move is capture')
+			self.parent.remove_widget(is_occupied)
+		
+		self.pos = position
+		enemy_pieces = [piece for piece in self.parent.children if piece.side != self.side]
+		general = [piece for piece in self.parent.children if 'general' in piece.source and piece.side == self.side][0]
+		general_pos = (general.pos[0], general.pos[1])
+		
+		for enemy in enemy_pieces:
+			old_capture = enemy.capture_moves
+			old_valid = enemy.valid_moves
+			enemy.valid_moves = enemy.get_valid_moves()
+			if general_pos in enemy.valid_moves:
+				print('check')
+				danger = True
+			enemy.capture_moves = old_capture
+			enemy.valid_moves = old_valid
+		
+		self.pos = self.previous_position
+		if is_occupied:
+			self.parent.add_widget(is_occupied, -1)
+		return danger
+			
 	def get_unblocked_moves(self, move_list, passed_by_direction = True): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
 		cannon_screen_index = -1
 		cannon_capture_found = False
-		#cannon_screen_position = (0, 0)
 		result = []
 		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
-		#print(positions)
 		for direction in move_list:
-			#print('direction was ' + str(direction))
 			for index, position in enumerate(direction):
-				#print('checking position ' + str(position))
 				matching = get_duplicate_piece(position, positions, 49)
-				#print('matching is ' + str(matching))
-				#if len(matching) == 1:
-					#continue
 				for match_index, match in enumerate(matching):
-					#if match[0] == self.pos and match[1] == self.source and match_index == 0: #אני מניח שזה לא הכרחי
-						#continue
-					#if 'red_dot' in match[1]: גם זה לא
-						#continue
-					
 					is_match_ally = (self.side == match[1].split('_', 1)[1].split('.', 1)[0])
-					
 					if cannon_screen_index == -1:
-						#print('my side is ' + self.side + ' and match side is ' + match[1].split('_', 1)[1].split('.', 1)[0])
 						if is_match_ally:
 							if passed_by_direction:
 								del direction[index:]
@@ -131,7 +145,6 @@ class Piece(DragBehavior, Image):
 								if position not in self.capture_moves:
 									self.capture_moves.append(position)
 							else:
-								#print('found cannon screen at ' + str(position))
 								cannon_screen_index = index
 								if position == direction[-1]: #screen to nowhere!
 									del direction[cannon_screen_index:]
@@ -140,13 +153,10 @@ class Piece(DragBehavior, Image):
 							
 					elif 'cannon' in self.source:
 						if not is_match_ally:
-							#print('cannon can capture on ' + str(position))
 							cannon_capture_found = True
 							result.append(position)
 							if position not in self.capture_moves:
-								#print('added to capture moves')
 								self.capture_moves.append(position)
-							#print('added to capture moves, which are now ' + str(self.capture_moves))
 						else:
 							pass
 							#print('cannon blocked by ally on ' + str(position))
@@ -160,36 +170,19 @@ class Piece(DragBehavior, Image):
 			result += direction
 			
 		return result
-	
-	def is_in_danger(self, position = (0, 0)):
-		if position == (0, 0):
-			position = (self.pos[0], self.pos[1])
-			
-		other_pieces = [piece for piece in self.parent.children if piece != self]
-		for piece in other_pieces:
-			#print('checking piece at' + str(piece.pos))
-			piece.valid_moves = piece.get_valid_moves()
-			if position in piece.valid_moves or position in piece.capture_moves:
-				print('i am in danger from ' + str(position))
-				return True
-				
-		return False
 
 	def on_touch_down(self, touch):
+		if self.parent.turn != self.side and self.collide_point(*touch.pos):
+			return False
 		if self.collide_point(*touch.pos):
-			#print('am i in danger? answer is ' + str(self.is_in_danger()))
 			self.parent.bring_to_front(self)
 			self.is_active = True
 			self.previous_position = (int(self.x), int(self.y))
 			#if 'general' not in self.source:
 			self.capture_moves = []
-			self.valid_moves = self.get_valid_moves()
-			#if 'general' in self.source:
-				#self.valid_moves += self.capture_moves
-			print('my valid moves are ' + str(self.valid_moves))
-			print('my capture moves are ' + str(self.capture_moves))
-
-			print('am i in danger? answer is ' + str(self.is_in_danger()))
+			move_list = self.get_valid_moves()
+			self.valid_moves = [move for move in move_list if not self.is_check_after_move(move)]
+			#self.valid_moves = self.get_valid_moves()
 			
 			dot_layout = FloatLayout()
 			for valid_move in self.valid_moves:
@@ -209,11 +202,16 @@ class Piece(DragBehavior, Image):
 			self.parent.add_widget(dot_layout, 1)
 
 			print('allowed moves are: ' + str(self.valid_moves))
+			print('capture moves are: ' + str(self.capture_moves))
 			
 		return super(Piece, self).on_touch_down(touch)
 		
 	def on_touch_up(self, touch):
+		if self.parent.turn != self.side:
+			print('not your turn!')
+			return False
 		if self.collide_point(*touch.pos):
+				
 			self.parent.send_to_back(self)
 			for child in self.parent.children:
 				if isinstance(child, FloatLayout):
@@ -236,17 +234,17 @@ class Piece(DragBehavior, Image):
 			
 			self.x = corrected_x
 			self.y = corrected_y
-					
-			#print('i was told to move to ' + str(corrected_x) + ',' + str(corrected_y))
 			
-			#print('my valid moves are ' + str(self.valid_moves))
-			#print('my capture moves are ' + str(self.capture_moves))
 			if (corrected_x, corrected_y) in self.valid_moves:
 				if (corrected_x, corrected_y) in self.capture_moves:
 					self.handle_capture((corrected_x, corrected_y))
 				
 				self.x = corrected_x
 				self.y = corrected_y
+				if self.parent.turn == 'red':
+					self.parent.turn = 'black'
+				else:
+					self.parent.turn = 'red'
 				
 			else:
 				self.handle_invalid_move()
@@ -333,7 +331,8 @@ class Elephant(Piece):
 			if i == 3:
 				northwest.append((position[0] + northwest_offset[0], position[1] + northwest_offset[1]))
 		
-		if self.side == 'red':
+		self_is_host = self.side == self.parent.host
+		if self_is_host:
 			elephant_bounds = [min_bounds[0], max_bounds[0], min_bounds[1], min_bounds[1] + y_step * 4]
 		else:
 			elephant_bounds = [min_bounds[0], max_bounds[0], min_bounds[1] + y_step * 5, max_bounds[1]]
@@ -367,7 +366,8 @@ class Minister(Piece):
 			if i == 3:
 				northwest.append((position[0] + northwest_offset[0], position[1] + northwest_offset[1]))
 		
-		if self.side == 'red':
+		self_is_host = self.side == self.parent.host
+		if self_is_host:
 			minister_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
 		else:
 			minister_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, max_bounds[1] - y_step * 2, max_bounds[1]]
@@ -406,20 +406,21 @@ class General(Piece):
 		same_file = [piece for piece in self.parent.children if (self.pos[0] == piece.pos[0])]
 		if same_file:
 			same_file.sort(key = lambda p: p.pos[1])
-			print('same file has ' + str(same_file))
+			#print('same file has ' + str(same_file))
 		
 		for x, y in zip(same_file, same_file[1:]):
 			if 'general' in x.source and 'general' in y.source:
 				print('no screen')
 				if x == self:
-					self.capture_moves.append(y.pos)
-					general_pos.append(y.pos)
+					self.capture_moves.append((y.pos[0], y.pos[1]))
+					general_pos.append((y.pos[0], y.pos[1]))
 				else:
-					self.capture_moves.append(x.pos)
-					general_pos.append(x.pos)
+					self.capture_moves.append((x.pos[0], x.pos[1]))
+					general_pos.append((x.pos[0], x.pos[1]))
 					
 		
-		if self.side == 'red':
+		self_is_host = self.side == self.parent.host
+		if self_is_host:
 			general_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, min_bounds[1], min_bounds[1] + y_step * 2]
 		else:
 			general_bounds = [min_bounds[0] + x_step * 3, min_bounds[0] + x_step * 5, max_bounds[1] - y_step * 2, max_bounds[1]]
@@ -464,13 +465,14 @@ class Pawn(Piece):
 	
 	def get_valid_moves(self):
 		result = []
-		if self.side == 'red':
+		if self.side == self.parent.host:
 			result.append((self.pos[0], self.pos[1] + y_step))
 		else:
 			result.append((self.pos[0], self.pos[1] - y_step))
-				
-		if self.side == 'red' and self.pos[1] > bounds[2] + y_step * 4 or \
-		self.side == 'black' and self.pos[1] < bounds[3] - y_step * 4:
+		
+		self_is_host = self.side == self.parent.host
+		if self.pos[1] > bounds[2] + y_step * 4 and self_is_host or \
+		self.pos[1] < bounds[3] - y_step * 4 and not self_is_host:
 				result.append((self.pos[0] - x_step, self.pos[1]))
 				result.append((self.pos[0] + x_step, self.pos[1]))
 		
