@@ -11,6 +11,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.behaviors import DragBehavior
 from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
+from kivy.uix.popup import Popup
 
 Window.size = (800, 800) #was (800, 800)
 piece_size = Window.size[0] * 0.08
@@ -66,6 +67,25 @@ class Xiangqi(Widget):
 			if (piece.pos[0], piece.pos[1]) == position:
 				return piece
 		return None
+	
+	def is_board_in_mate(self, enemy_side):
+		enemy_pieces = [piece for piece in self.children if piece.side == enemy_side]
+		for enemy in enemy_pieces:
+			old_capture = enemy.capture_moves
+			old_valid = enemy.valid_moves
+			enemy.valid_moves = enemy.get_valid_moves()
+			if enemy.valid_moves:
+				return False
+			enemy.capture_moves = old_capture
+			enemy.valid_moves = old_valid
+		
+		return True
+	
+	def handle_mate(self):
+		content = Button(text = 'Close me!', size_hint = (None, None))
+		popup = Popup(content = content, auto_dismiss = False)
+		content.bind(on_press = popup.dismiss)
+		popup.open()
 		
 
 class Piece(DragBehavior, Image):
@@ -120,55 +140,50 @@ class Piece(DragBehavior, Image):
 		return danger
 			
 	def get_unblocked_moves(self, move_list, passed_by_direction = True): #רשימת רשימות שבה תהיה רשימה אחת לכל כיוון
-		cannon_screen_index = -1
-		cannon_capture_found = False
+		#cannon_screen_index = -1
+		#cannon_capture_found = False
+		other_pieces = [p for p in self.parent.children if p != self]
 		result = []
-		positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
+		#positions = list(map(lambda p: [p.pos, p.source], self.parent.children))
 		for direction in move_list:
+			cannon_screen_index = -1
+			cannon_capture_found = False
 			for index, position in enumerate(direction):
-				matching = get_duplicate_piece(position, positions, 49)
-				for match_index, match in enumerate(matching):
-					is_match_ally = (self.side == match[1].split('_', 1)[1].split('.', 1)[0])
-					if cannon_screen_index == -1:
-						if is_match_ally:
+				possible_piece = [p for p in other_pieces if p.pos == [position[0], position[1]]]
+				if possible_piece:
+					piece = possible_piece[0]
+					if 'cannon' in self.source:
+						if cannon_screen_index == -1:
+							cannon_screen_index = index
+						else:
+							if piece.side == self.side:
+								print('cannon blocked')
+							else:
+								cannon_capture_found = True
+								if position not in self.capture_moves:
+									self.capture_moves.append(position)
+								result.append(position)
+							
+							del direction[cannon_screen_index:]
+							
+					else:
+						if piece.side == self.side:
 							if passed_by_direction:
 								del direction[index:]
 							else:
 								direction = list(filter(lambda pos: pos != position, direction))
 						else:
-							if 'cannon' not in self.source:
-								if passed_by_direction:
-									del direction[(index + 1):]
-								else:
-									print('can capture at position ' + str(position))
-									
-								if position not in self.capture_moves:
-									self.capture_moves.append(position)
+							if passed_by_direction:
+								del direction[(index + 1):]
 							else:
-								cannon_screen_index = index
-								if position == direction[-1]: #screen to nowhere!
-									del direction[cannon_screen_index:]
-								
-								#cannon_screen_position = position
-							
-					elif 'cannon' in self.source:
-						if not is_match_ally:
-							cannon_capture_found = True
-							result.append(position)
+								print('can capture at position ' + str(position))
+									
 							if position not in self.capture_moves:
 								self.capture_moves.append(position)
-						else:
-							pass
-							#print('cannon blocked by ally on ' + str(position))
-
-						del direction[cannon_screen_index:]
 			
 			if cannon_screen_index != -1 and not cannon_capture_found:
 				del direction[cannon_screen_index:]
-				
-			cannon_screen_index = -1
 			result += direction
-			
 		return result
 
 	def on_touch_down(self, touch):
@@ -239,12 +254,15 @@ class Piece(DragBehavior, Image):
 				if (corrected_x, corrected_y) in self.capture_moves:
 					self.handle_capture((corrected_x, corrected_y))
 				
-				self.x = corrected_x
-				self.y = corrected_y
+				#self.x = corrected_x
+				#self.y = corrected_y
 				if self.parent.turn == 'red':
 					self.parent.turn = 'black'
 				else:
 					self.parent.turn = 'red'
+				
+				if self.parent.is_board_in_mate(self.parent.turn):
+					self.parent.handle_mate()
 				
 			else:
 				self.handle_invalid_move()
