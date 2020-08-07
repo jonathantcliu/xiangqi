@@ -86,6 +86,9 @@ class Xiangqi(Widget):
 		popup = Popup(content = content, auto_dismiss = False)
 		content.bind(on_press = popup.dismiss)
 		popup.open()
+	
+	def reset(self):
+		pass #to do
 		
 
 class Piece(DragBehavior, Image):
