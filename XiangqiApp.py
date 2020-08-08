@@ -12,6 +12,8 @@ from kivy.uix.behaviors import DragBehavior
 from kivy.uix.scatter import Scatter
 from kivy.properties import ListProperty
 from kivy.uix.popup import Popup
+from kivy.uix.boxlayout import BoxLayout
+from kivy.clock import Clock
 
 Window.size = (800, 800) #was (800, 800)
 piece_size = Window.size[0] * 0.08
@@ -69,26 +71,101 @@ class Xiangqi(Widget):
 		return None
 	
 	def is_board_in_mate(self, enemy_side):
+		#danger = True
 		enemy_pieces = [piece for piece in self.children if piece.side == enemy_side]
-		for enemy in enemy_pieces:
-			old_capture = enemy.capture_moves
-			old_valid = enemy.valid_moves
-			enemy.valid_moves = enemy.get_valid_moves()
-			if enemy.valid_moves:
+		for piece in enemy_pieces:
+			print('checking piece at ' + str(piece.pos))
+			piece.previous_position = (piece.pos[0], piece.pos[1])
+			piece.capture_moves = []
+			move_list = piece.get_valid_moves()
+			piece.valid_moves = [move for move in move_list if not piece.is_check_after_move(move)]
+			#piece.pos = piece.previous_position
+			#print('piece now at ' + str(piece.pos))
+			if piece.valid_moves:
+				#print('previous position now ' + str(piece.previous_position))
+				#piece.pos = piece.previous_position
+				#print('piece at ' + str(piece.pos))
+				print('piece can move ' + str(piece.source))
+				print('moves are ' + str(piece.valid_moves))
 				return False
-			enemy.capture_moves = old_capture
-			enemy.valid_moves = old_valid
-		
+			
 		return True
+			
+	def handle_mate(self, color):
+		#first_layout = BoxLayout(orientation = 'vertical', size_hint = (None, None), pos = (100, 400))
+		label = Label(text = u'將死。 ' + color.title() + ' wins!', font_size = '24sp',
+		font_name = 'msyh.ttc',
+		color = (0, 0, 0, 1), size = (100, 100), pos = (350, 730))
+		
+		#message = color.title() + ' wins!'
+		red_button = Button(text = 'Play again as red', size = (200, 50), pos = (150, 375))
+		black_button = Button(text = 'Play again as black', size = (200, 50), pos = (450, 375))
+		self.add_widget(label)
+		red_button_callback = lambda x: self.reset('red')
+		black_button_callback = lambda x: self.reset('black')
+		
+		red_button.bind(on_press = red_button_callback)
+		black_button.bind(on_press = black_button_callback)
+		self.add_widget(red_button)
+		self.add_widget(black_button)
 	
-	def handle_mate(self):
-		content = Button(text = 'Close me!', size_hint = (None, None))
-		popup = Popup(content = content, auto_dismiss = False)
-		content.bind(on_press = popup.dismiss)
-		popup.open()
-	
-	def reset(self):
-		pass #to do
+	def reset(self, color):
+		self.clear_widgets()
+		
+		other = 'black'
+		if color == 'black':
+			other = 'red'
+			
+		sides = [color, other]
+		
+		for side_index in range(2): 
+			for i in range(9):
+				if i == 0 or i == 8:
+					piece = Rook(sides[side_index])
+				elif i == 1 or i == 7:
+					piece = Horse(sides[side_index])
+				elif i == 2 or i == 6:
+					piece = Elephant(sides[side_index])
+				elif i == 3 or i == 5:
+					piece = Minister(sides[side_index])
+				elif i == 4:
+					piece = General(sides[side_index])
+				if side_index == 0:
+					piece.pos = (bounds[0] + x_step * i, bounds[2])
+					piece.id_number = i + 1
+				else:
+					piece.pos = (bounds[0] + x_step * i, bounds[2] + y_step * 9)
+					piece.id_number = i + 17
+					
+				self.add_widget(piece)
+			
+			for i in range(2):
+				piece = Cannon(sides[side_index])
+				if side_index == 0:
+					piece.pos = (bounds[0] + x_step + 6 * x_step * i, bounds[2] + y_step * 2)
+					#piece.pos = (126 + 6 * 80 * i, 180)
+					piece.id_number = i + 10
+				else:
+					piece.pos = (bounds[0] + x_step + 6 * x_step * i, bounds[2] + y_step * 7) 
+					#piece.pos = (126 + 6 * 80 * i, 550)
+					piece.id_number = i + 26
+				
+				self.add_widget(piece)
+			
+			for i in range(5):
+				piece = Pawn(sides[side_index])
+				if side_index == 0:
+					piece.pos = (bounds[0] + 2 * x_step * i, bounds[2] + y_step * 3)
+					#piece.pos = (46 + 160 * i, 250)
+					piece.id_number = i + 12
+				else:
+					piece.pos = (bounds[0] + 2 * x_step * i, bounds[2] + y_step * 6)
+					#piece.pos = (46 + 160 * i, 480)
+					piece.id_number = i + 28
+					
+				self.add_widget(piece)
+			
+			#board_side = 1
 		
 
 class Piece(DragBehavior, Image):
@@ -225,11 +302,14 @@ class Piece(DragBehavior, Image):
 		return super(Piece, self).on_touch_down(touch)
 		
 	def on_touch_up(self, touch):
+		def callback(dt):
+			self.parent.handle_mate(self.side)
+			#return super(Piece, self).on_touch_up(touch)
+			
 		if self.parent.turn != self.side:
 			print('not your turn!')
 			return False
 		if self.collide_point(*touch.pos):
-				
 			self.parent.send_to_back(self)
 			for child in self.parent.children:
 				if isinstance(child, FloatLayout):
@@ -265,7 +345,9 @@ class Piece(DragBehavior, Image):
 					self.parent.turn = 'red'
 				
 				if self.parent.is_board_in_mate(self.parent.turn):
-					self.parent.handle_mate()
+					Clock.schedule_once(callback)
+					return super(Piece, self).on_touch_up(touch)
+					#self.parent.handle_mate(self.side)
 				
 			else:
 				self.handle_invalid_move()
@@ -505,63 +587,7 @@ class XiangqiApp(App):
 		root = Xiangqi()
 		#piece_layout = FloatLayout()
 		#root.add_widget(piece_layout)
-		
-		other = 'black'
-		if root.host == 'black':
-			other = 'red'
-			
-		sides = [root.host, other]
-		
-		for side_index in range(2): 
-			for i in range(9):
-				if i == 0 or i == 8:
-					piece = Rook(sides[side_index])
-				elif i == 1 or i == 7:
-					piece = Horse(sides[side_index])
-				elif i == 2 or i == 6:
-					piece = Elephant(sides[side_index])
-				elif i == 3 or i == 5:
-					piece = Minister(sides[side_index])
-				elif i == 4:
-					piece = General(sides[side_index])
-				if side_index == 0:
-					piece.pos = (bounds[0] + x_step * i, bounds[2])
-					piece.id_number = i + 1
-				else:
-					piece.pos = (bounds[0] + x_step * i, bounds[2] + y_step * 9)
-					piece.id_number = i + 17
-					
-				root.add_widget(piece)
-			
-			for i in range(2):
-				piece = Cannon(sides[side_index])
-				if side_index == 0:
-					piece.pos = (bounds[0] + x_step + 6 * x_step * i, bounds[2] + y_step * 2)
-					#piece.pos = (126 + 6 * 80 * i, 180)
-					piece.id_number = i + 10
-				else:
-					piece.pos = (bounds[0] + x_step + 6 * x_step * i, bounds[2] + y_step * 7) 
-					#piece.pos = (126 + 6 * 80 * i, 550)
-					piece.id_number = i + 26
-				
-				root.add_widget(piece)
-			
-			for i in range(5):
-				piece = Pawn(sides[side_index])
-				if side_index == 0:
-					piece.pos = (bounds[0] + 2 * x_step * i, bounds[2] + y_step * 3)
-					#piece.pos = (46 + 160 * i, 250)
-					piece.id_number = i + 12
-				else:
-					piece.pos = (bounds[0] + 2 * x_step * i, bounds[2] + y_step * 6)
-					#piece.pos = (46 + 160 * i, 480)
-					piece.id_number = i + 28
-					
-				root.add_widget(piece)
-			
-			board_side = 1
-			
-		#root.turn = 'red'
+		root.reset(root.host)
 		return root
 
 XiangqiApp().run()
